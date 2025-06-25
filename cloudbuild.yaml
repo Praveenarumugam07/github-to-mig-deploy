@@ -10,7 +10,7 @@ steps:
         echo "VERSION_TAG=$VERSION_TAG" > /workspace/version.env
         echo "Generated version: $VERSION_TAG"
 
-  # Step 1: Create Instance Template (Regional)
+  # Step 1: Create Instance Template with startup script
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Create Instance Template'
     entrypoint: 'bash'
@@ -31,7 +31,7 @@ steps:
           mkdir -p /home/praveen_a/my-app
           chown -R praveen_a:praveen_a /home/praveen_a/my-app
           cd /home/praveen_a/my-app
-          curl -L https://github.com/Praveenarumugam07/github-to-mig-deploy/archive/refs/heads/main.zip -o source.zip
+          curl -L https://github.com/praveen-a/github-to-mig-deploy/archive/refs/heads/main.zip -o source.zip
           unzip source.zip -d .
           cd github-to-mig-deploy-main || exit
           python3 -m venv venv
