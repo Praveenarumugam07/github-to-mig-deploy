@@ -1,15 +1,7 @@
-steps:
-  # Step 0: Generate dynamic version tag
-  - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'Generate Version'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        VERSION_TAG="v-$(date +%Y%m%d-%H%M%S)"
-        echo "VERSION_TAG=$VERSION_TAG" > /workspace/version.env
-        echo "Generated version: $VERSION_TAG"
+substitutions:
+  _VERSION_TAG: "v-default"  # fallback value in case UI does not provide one
 
+steps:
   # Step 1: Create Instance Template with startup script
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Create Instance Template'
@@ -17,8 +9,7 @@ steps:
     args:
       - '-c'
       - |
-        source /workspace/version.env
-        gcloud compute instance-templates create praveen-template-$VERSION_TAG \
+        gcloud compute instance-templates create praveen-template-${_VERSION_TAG} \
           --machine-type=e2-medium \
           --region=asia-south1 \
           --image-family=debian-12 \
@@ -46,18 +37,17 @@ steps:
     args:
       - '-c'
       - |
-        source /workspace/version.env
         if ! gcloud compute instance-groups managed describe praveen-mig --zone=asia-south1-c > /dev/null 2>&1; then
           echo "Creating MIG..."
           gcloud compute instance-groups managed create praveen-mig \
             --base-instance-name=praveen-instance \
-            --template=praveen-template-$VERSION_TAG \
+            --template=praveen-template-${_VERSION_TAG} \
             --size=1 \
             --zone=asia-south1-c
         else
           echo "Updating MIG with new template..."
           gcloud compute instance-groups managed set-instance-template praveen-mig \
-            --template=praveen-template-$VERSION_TAG \
+            --template=praveen-template-${_VERSION_TAG} \
             --zone=asia-south1-c
           echo "Rolling restart..."
           gcloud compute instance-groups managed rolling-action restart praveen-mig \
