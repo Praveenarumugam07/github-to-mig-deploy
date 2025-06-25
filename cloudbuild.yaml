@@ -1,5 +1,5 @@
 substitutions:
-  _VERSION_TAG: "v-default"  # fallback value in case UI does not provide one
+  _VERSION_TAG: "v-default"  # Override this from Cloud Build UI
 
 steps:
   # Step 1: Create Instance Template with startup script
@@ -23,7 +23,7 @@ steps:
           chown -R praveen_a:praveen_a /home/praveen_a/my-app
           cd /home/praveen_a/my-app
           curl -L https://github.com/praveen-a/github-to-mig-deploy/archive/refs/heads/main.zip -o source.zip
-          unzip source.zip -d .
+          unzip source.zip
           cd github-to-mig-deploy-main || exit
           python3 -m venv venv
           source venv/bin/activate
