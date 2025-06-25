@@ -1,0 +1,68 @@
+steps:
+  # Step 0: Generate dynamic version tag
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Generate Version'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        VERSION_TAG="v-$(date +%Y%m%d-%H%M%S)"
+        echo "VERSION_TAG=$VERSION_TAG" > /workspace/version.env
+        echo "Generated version: $VERSION_TAG"
+
+  # Step 1: Create Instance Template (Regional)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Create Instance Template'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        source /workspace/version.env
+        gcloud compute instance-templates create praveen-template-$VERSION_TAG \
+          --machine-type=e2-medium \
+          --region=asia-south1 \
+          --image-family=debian-12 \
+          --image-project=debian-cloud \
+          --tags=http-server,https-server,allow-8080 \
+          --metadata=startup-script='#!/bin/bash
+          echo "Startup script started."
+          apt-get update -y
+          apt-get install -y unzip curl python3-pip python3.11-venv
+          mkdir -p /home/praveen_a/my-app
+          chown -R praveen_a:praveen_a /home/praveen_a/my-app
+          cd /home/praveen_a/my-app
+          curl -L https://github.com/Praveenarumugam07/github-to-mig-deploy/archive/refs/heads/main.zip -o source.zip
+          unzip source.zip -d .
+          cd github-to-mig-deploy-main || exit
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install flask
+          nohup python3 app.py --host=0.0.0.0 --port=8080 > /home/praveen_a/app.log 2>&1 &'
+
+  # Step 2: Create or Update MIG
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Create or Update MIG'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        source /workspace/version.env
+        if ! gcloud compute instance-groups managed describe praveen-mig --zone=asia-south1-c > /dev/null 2>&1; then
+          echo "Creating MIG..."
+          gcloud compute instance-groups managed create praveen-mig \
+            --base-instance-name=praveen-instance \
+            --template=praveen-template-$VERSION_TAG \
+            --size=1 \
+            --zone=asia-south1-c
+        else
+          echo "Updating MIG with new template..."
+          gcloud compute instance-groups managed set-instance-template praveen-mig \
+            --template=praveen-template-$VERSION_TAG \
+            --zone=asia-south1-c
+          echo "Rolling restart..."
+          gcloud compute instance-groups managed rolling-action restart praveen-mig \
+            --zone=asia-south1-c
+        fi
+
+options:
+  logging: CLOUD_LOGGING_ONLY
